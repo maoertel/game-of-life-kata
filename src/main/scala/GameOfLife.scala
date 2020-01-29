@@ -45,35 +45,34 @@ object GameOfLife {
 
 }
 
-object Printer {
+object Game {
 
   type PrintFX = List[IO[Unit]]
 
-  def startGameOfLife(startGrid: Grid, generations: Int): IO[Unit] = {
+  def create(startGrid: Grid, generations: Int): IO[Unit] = {
 
-    def printGrid(grid: Grid, effects: PrintFX): PrintFX = {
-
-      @scala.annotation.tailrec
-      def traverseOverGrid(restOfRows: Grid, effects: PrintFX): PrintFX =
-        restOfRows match {
-          case Nil => effects
-          case row :: tail => traverseOverGrid(tail, traverseOverRow(row, effects) ++ (IO (println()) :: Nil))
-        }
-
-      @scala.annotation.tailrec
-      def traverseOverRow(restOfCellsInRow: List[Cell], effects: PrintFX): PrintFX =
-        restOfCellsInRow match {
-          case Nil => effects
-          case cell :: tail => traverseOverRow(tail, effects ++ (IO { print(if (cell == Alive) "X" else "_") } :: Nil))
-        }
-
-      traverseOverGrid(grid, effects)
-    }
+    val emptyLine = IO { println() } :: Nil
 
     @scala.annotation.tailrec
     def printAllGenerations(grid: Grid, restGenerations: Int, effects: PrintFX): PrintFX =
       if (restGenerations == 0) effects
-      else printAllGenerations(GameOfLife.nextGen(grid), restGenerations - 1, effects ++ printGrid(grid, effects))
+      else printAllGenerations(GameOfLife.nextGen(grid), restGenerations - 1, effects ++ printGrid(grid, effects) ++ emptyLine)
+
+    def printGrid(grid: Grid, effects: PrintFX): PrintFX = traverseOverGrid(grid, effects)
+
+    @scala.annotation.tailrec
+    def traverseOverGrid(restOfRows: Grid, effects: PrintFX): PrintFX =
+      restOfRows match {
+        case Nil => effects
+        case row :: tail => traverseOverGrid(tail, traverseOverRow(row, effects) ++ emptyLine)
+      }
+
+    @scala.annotation.tailrec
+    def traverseOverRow(restOfCellsInRow: List[Cell], effects: PrintFX): PrintFX =
+      restOfCellsInRow match {
+        case Nil => effects
+        case cell :: tail => traverseOverRow(tail, effects ++ (IO { print(if (cell == Alive) "X" else "_") } :: Nil))
+      }
 
     printAllGenerations(startGrid, generations, Nil).sequence_
   }
@@ -88,7 +87,7 @@ object Main extends App {
     List(Dead, Dead, Dead, Dead, Dead, Dead, Dead, Dead),
   )
 
-  private val game = Printer.startGameOfLife(startGrid, generations = 2)
+  private val game = Game.create(startGrid, generations = 2)
 
   game.unsafeRunSync()
 }
