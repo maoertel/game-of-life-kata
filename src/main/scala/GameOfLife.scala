@@ -1,4 +1,5 @@
-import GameOfLife.{Alive, Dead, Grid}
+import GameOfLife.{Alive, Cell, Dead, Grid}
+
 import scala.util.{Failure, Success, Try}
 
 object GameOfLife {
@@ -46,11 +47,29 @@ object Printer {
 
   def startGameOfLife(startGrid: Grid, generations: Int): Unit = {
 
-    def printGrid(grid: Grid): Unit =
-      grid foreach { row =>
-        row foreach (cell => print(if (cell == Alive) "X" else "_"))
-        println()
-      }
+    def printGrid(grid: Grid): Unit = {
+
+      @scala.annotation.tailrec
+      def traverseOverGrid(restOfRows: List[List[Cell]]): Unit =
+        restOfRows match {
+          case Nil => ()
+          case row :: tail =>
+            traverseOverRow(row)
+            println()
+            traverseOverGrid(tail)
+        }
+
+      @scala.annotation.tailrec
+      def traverseOverRow(restOfCellsInRow: List[Cell]): Unit =
+        restOfCellsInRow match {
+          case Nil => ()
+          case cell :: tail =>
+            print(if (cell == Alive) "X" else "_")
+            traverseOverRow(tail)
+        }
+
+      traverseOverGrid(grid)
+    }
 
     @scala.annotation.tailrec
     def printAllGenerations(grid: Grid, restGenerations: Int): Unit =
@@ -73,5 +92,5 @@ object Main extends App {
     List(Dead, Dead, Dead, Dead, Dead, Dead, Dead, Dead),
   )
 
-  Printer.startGameOfLife(startGrid, generations = 10)
+  Printer.startGameOfLife(startGrid, generations = 100)
 }
