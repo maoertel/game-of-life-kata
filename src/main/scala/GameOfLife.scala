@@ -47,47 +47,62 @@ object GameOfLife {
 
 object Game {
 
-  type PrintFX = List[IO[Unit]]
-
   def create(startGrid: Grid, generations: Int): IO[Unit] = {
 
-    val emptyLine = IO { println() } :: Nil
+    val emptyLine = IO(println())
 
     @scala.annotation.tailrec
-    def printAllGenerations(grid: Grid, restGenerations: Int, effects: PrintFX): PrintFX =
+    def printAllGenerations(grid: Grid, restGenerations: Int, effects: IO[Unit]): IO[Unit] =
       if (restGenerations == 0) effects
-      else printAllGenerations(GameOfLife.nextGen(grid), restGenerations - 1, effects ++ printGrid(grid, effects) ++ emptyLine)
+      else {
+        val accEffects = for {
+          //          _ <- effects
+          _ <- printGrid(grid, effects)
+          _ <- emptyLine
+        } yield ()
+        printAllGenerations(GameOfLife.nextGen(grid), restGenerations - 1, accEffects)
+      }
 
-    def printGrid(grid: Grid, effects: PrintFX): PrintFX = traverseOverGrid(grid, effects)
+    def printGrid(grid: Grid, effects: IO[Unit]): IO[Unit] = traverseOverGrid(grid, effects)
 
     @scala.annotation.tailrec
-    def traverseOverGrid(restOfRows: Grid, effects: PrintFX): PrintFX =
+    def traverseOverGrid(restOfRows: Grid, effects: IO[Unit]): IO[Unit] =
       restOfRows match {
         case Nil => effects
-        case row :: tail => traverseOverGrid(tail, traverseOverRow(row, effects) ++ emptyLine)
+        case row :: tail =>
+          val accEffects = for {
+            _ <- traverseOverRow(row, effects)
+            _ <- emptyLine
+          } yield ()
+          traverseOverGrid(tail, accEffects)
       }
 
     @scala.annotation.tailrec
-    def traverseOverRow(restOfCellsInRow: List[Cell], effects: PrintFX): PrintFX =
+    def traverseOverRow(restOfCellsInRow: List[Cell], effects: IO[Unit]): IO[Unit] =
       restOfCellsInRow match {
         case Nil => effects
-        case cell :: tail => traverseOverRow(tail, effects ++ (IO { print(if (cell == Alive) "X" else "_") } :: Nil))
+        case cell :: tail =>
+          val accEffects = for {
+            _ <- effects
+            _ <- IO { print(if (cell == Alive) "X" else "_") }
+          } yield ()
+          traverseOverRow(tail, accEffects)
       }
 
-    printAllGenerations(startGrid, generations, Nil).sequence_
+    printAllGenerations(startGrid, generations, IO.unit)
   }
 }
 
 object Main extends App {
 
   private val startGrid = List(
-    List(Dead, Dead, Dead, Dead, Dead, Alive, Dead, Dead),
-    List(Dead, Dead, Dead, Dead, Dead, Alive, Dead, Dead),
+    List(Dead, Dead, Dead, Dead, Dead,  Alive, Dead, Dead),
+    List(Dead, Dead, Dead, Dead, Dead,  Alive, Dead, Dead),
     List(Dead, Dead, Dead, Dead, Alive, Alive, Dead, Dead),
-    List(Dead, Dead, Dead, Dead, Dead, Dead, Dead, Dead),
+    List(Dead, Dead, Dead, Dead, Dead,  Dead,  Dead, Dead),
   )
 
-  private val game = Game.create(startGrid, generations = 2)
+  private val game = Game.create(startGrid, generations = 5)
 
   game.unsafeRunSync()
 }
