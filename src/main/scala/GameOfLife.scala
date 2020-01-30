@@ -45,16 +45,16 @@ object GameOfLife {
 
 object Game {
 
-  def create(startGrid: Grid, generations: Int): IO[Unit] = {
+  def create(initialGrid: Grid, numOfGenerations: Int): IO[Unit] = {
 
     val emptyLine = IO(println())
 
-    def printAllGenerations(grid: Grid, restGenerations: Int, effects: IO[Unit]): IO[Unit] =
+    def printGenerations(grid: Grid, restGenerations: Int, effects: IO[Unit]): IO[Unit] =
       if (restGenerations == 0) effects
       else for {
-        fx    <- printGrid(grid, effects) map (_ => emptyLine)
-        grid  <- GameOfLife.nextGen(grid)
-        _     <- printAllGenerations(grid, restGenerations - 1, fx)
+        fx        <- printGrid(grid, effects) map (_ => emptyLine)
+        nextGrid  <- GameOfLife.nextGen(grid)
+        _         <- printGenerations(nextGrid, restGenerations - 1, fx)
       } yield ()
 
     def printGrid(grid: Grid, effects: IO[Unit]): IO[Unit] = traverseOverGrid(grid, effects)
@@ -66,32 +66,46 @@ object Game {
           fx  <- traverseOverRow(row, effects) map (_ => emptyLine)
           _   <- traverseOverGrid(tail, fx)
         } yield ()
-
       }
 
     def traverseOverRow(restOfCellsInRow: List[Cell], effects: IO[Unit]): IO[Unit] =
       restOfCellsInRow match {
         case Nil => effects
         case cell :: tail => for {
-          fx  <- effects map (_ => IO { print(if (cell == Alive) "X" else "_") } )
+          fx  <- effects map (_ => IO(print(if (cell == Alive) "X" else "_")))
           _   <- traverseOverRow(tail, fx)
         } yield ()
       }
 
-    printAllGenerations(startGrid, generations, IO.unit)
+    printGenerations(initialGrid, numOfGenerations, IO.unit)
   }
 }
 
 object Main extends App {
 
-  private val startGrid = List(
-    List(Dead, Dead, Dead, Dead, Dead,  Alive, Dead, Dead),
-    List(Dead, Dead, Dead, Dead, Dead,  Alive, Dead, Dead),
-    List(Dead, Dead, Dead, Dead, Alive, Alive, Dead, Dead),
-    List(Dead, Dead, Dead, Dead, Dead,  Dead,  Dead, Dead),
+  private val initialGrid = List(
+    List(Dead, Dead, Dead, Dead, Dead, Dead, Dead, Dead, Dead, Dead, Dead, Dead, Dead, Alive, Dead, Dead),
+    List(Dead, Dead, Dead, Dead, Dead, Dead, Dead, Dead, Dead, Dead, Dead, Dead, Dead, Dead, Dead, Dead),
+    List(Dead, Dead, Dead, Dead, Alive, Alive, Dead, Dead, Dead, Dead, Dead, Dead, Dead, Dead, Dead, Dead),
+    List(Dead, Dead, Dead, Alive, Alive, Alive, Dead, Dead, Dead, Dead, Dead, Dead, Dead, Alive, Dead, Dead),
+    List(Dead, Dead, Dead, Alive, Dead, Alive, Dead, Dead, Dead, Alive, Dead, Dead, Dead, Alive, Dead, Dead),
+    List(Dead, Dead, Dead, Alive, Alive, Alive, Dead, Dead, Dead, Alive, Dead, Dead, Dead, Alive, Dead, Dead),
+    List(Dead, Dead, Dead, Dead, Alive, Alive, Dead, Dead, Alive, Alive, Dead, Dead, Dead, Alive, Dead, Dead),
+    List(Dead, Dead, Dead, Dead, Dead, Dead, Dead, Dead, Dead, Dead, Dead, Dead, Dead, Alive, Dead, Dead),
+    List(Dead, Dead, Dead, Dead, Dead, Alive, Dead, Dead, Dead, Dead, Dead, Dead, Dead, Alive, Dead, Dead),
+    List(Dead, Dead, Dead, Dead, Dead, Alive, Dead, Dead, Dead, Dead, Dead, Dead, Dead, Alive, Dead, Dead),
+    List(Dead, Dead, Dead, Dead, Dead, Alive, Dead, Dead, Dead, Dead, Dead, Dead, Dead, Alive, Dead, Dead),
+    List(Dead, Dead, Dead, Dead, Dead, Alive, Dead, Dead, Dead, Alive, Dead, Dead, Dead, Alive, Dead, Dead),
+    List(Dead, Dead, Dead, Dead, Dead, Alive, Dead, Dead, Dead, Alive, Dead, Dead, Dead, Alive, Dead, Dead),
+    List(Dead, Dead, Dead, Dead, Dead, Alive, Dead, Dead, Alive, Alive, Dead, Dead, Dead, Alive, Dead, Dead),
+    List(Dead, Dead, Dead, Dead, Dead, Alive, Dead, Dead, Dead, Dead, Dead, Dead, Dead, Alive, Dead, Dead),
+    List(Dead, Dead, Dead, Dead, Dead, Alive, Dead, Dead, Dead, Dead, Dead, Dead, Dead, Alive, Dead, Dead),
+    List(Dead, Dead, Dead, Dead, Dead, Alive, Dead, Dead, Dead, Dead, Dead, Dead, Dead, Alive, Alive, Alive),
+    List(Dead, Dead, Dead, Dead, Dead, Alive, Dead, Dead, Dead, Dead, Dead, Dead, Dead, Alive, Alive, Alive),
+    List(Dead, Dead, Dead, Dead, Dead, Alive, Dead, Dead, Dead, Dead, Dead, Dead, Dead, Alive, Alive, Alive)
   )
 
-  private val game = Game.create(startGrid, generations = 5)
+  private val game = Game.create(initialGrid, numOfGenerations = 100)
 
   game.unsafeRunSync()
 }
