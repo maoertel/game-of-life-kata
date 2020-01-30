@@ -52,7 +52,7 @@ object Game {
     def printAllGenerations(grid: Grid, restGenerations: Int, effects: IO[Unit]): IO[Unit] =
       if (restGenerations == 0) effects
       else for {
-        fx    <- IO(printGrid(grid, effects).flatMap(_ => emptyLine.map(_ => ())))
+        fx    <- printGrid(grid, effects) map (_ => emptyLine)
         grid  <- GameOfLife.nextGen(grid)
         _     <- printAllGenerations(grid, restGenerations - 1, fx)
       } yield ()
@@ -63,7 +63,7 @@ object Game {
       restOfRows match {
         case Nil => effects
         case row :: tail => for {
-          fx  <- IO(traverseOverRow(row, effects).flatMap(_ => emptyLine.map(_ => ())))
+          fx  <- traverseOverRow(row, effects) map (_ => emptyLine)
           _   <- traverseOverGrid(tail, fx)
         } yield ()
 
@@ -73,7 +73,7 @@ object Game {
       restOfCellsInRow match {
         case Nil => effects
         case cell :: tail => for {
-          fx  <- IO { effects.map { _ => print(if (cell == Alive) "X" else "_") } }
+          fx  <- effects map (_ => IO { print(if (cell == Alive) "X" else "_") } )
           _   <- traverseOverRow(tail, fx)
         } yield ()
       }
