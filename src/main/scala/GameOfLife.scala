@@ -14,12 +14,12 @@ object GameOfLife {
 
   case object Dead extends Cell
 
-  def nextGen(grid: Grid): Grid =
-    grid.zipWithIndex map { case (row: List[Cell], rowIndex: Int) =>
+  def nextGen(grid: Grid): IO[Grid] =
+    IO(grid.zipWithIndex map { case (row: List[Cell], rowIndex: Int) =>
       row.zipWithIndex map { case (cell: Cell, colIndex: Int) =>
         getNextState(grid, cell, rowIndex, colIndex)
       }
-    }
+    })
 
   def getNextState(grid: Grid, cell: Cell, rowIndex: Int, colIndex: Int): Cell = {
     val cellsAlive = evalNeighbors(grid, rowIndex, colIndex) count (_ == Alive)
@@ -51,42 +51,33 @@ object Game {
 
     val emptyLine = IO(println())
 
-    @scala.annotation.tailrec
     def printAllGenerations(grid: Grid, restGenerations: Int, effects: IO[Unit]): IO[Unit] =
       if (restGenerations == 0) effects
-      else {
-        val accEffects = for {
-          //          _ <- effects
-          _ <- printGrid(grid, effects)
-          _ <- emptyLine
-        } yield ()
-        printAllGenerations(GameOfLife.nextGen(grid), restGenerations - 1, accEffects)
-      }
+      else for {
+        fx    <- IO(printGrid(grid, effects).flatMap(_ => emptyLine.map(_ => ())))
+        grid  <- GameOfLife.nextGen(grid)
+        _     <- printAllGenerations(grid, restGenerations - 1, fx)
+      } yield ()
 
     def printGrid(grid: Grid, effects: IO[Unit]): IO[Unit] = traverseOverGrid(grid, effects)
 
-    @scala.annotation.tailrec
     def traverseOverGrid(restOfRows: Grid, effects: IO[Unit]): IO[Unit] =
       restOfRows match {
         case Nil => effects
-        case row :: tail =>
-          val accEffects = for {
-            _ <- traverseOverRow(row, effects)
-            _ <- emptyLine
-          } yield ()
-          traverseOverGrid(tail, accEffects)
+        case row :: tail => for {
+          fx  <- IO(traverseOverRow(row, effects).flatMap(_ => emptyLine.map(_ => ())))
+          _   <- traverseOverGrid(tail, fx)
+        } yield ()
+
       }
 
-    @scala.annotation.tailrec
     def traverseOverRow(restOfCellsInRow: List[Cell], effects: IO[Unit]): IO[Unit] =
       restOfCellsInRow match {
         case Nil => effects
-        case cell :: tail =>
-          val accEffects = for {
-            _ <- effects
-            _ <- IO { print(if (cell == Alive) "X" else "_") }
+        case cell :: tail => for {
+            fx  <- IO { effects.map{_ => print(if (cell == Alive) "X" else "_") } }
+            _   <- traverseOverRow(tail, fx)
           } yield ()
-          traverseOverRow(tail, accEffects)
       }
 
     printAllGenerations(startGrid, generations, IO.unit)
