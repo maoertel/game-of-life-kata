@@ -1,6 +1,5 @@
 import GameOfLife.{Alive, Cell, Dead, Grid}
 import cats.effect.IO
-import cats.implicits._
 
 import scala.util.{Failure, Success, Try}
 
@@ -9,17 +8,16 @@ object GameOfLife {
   type Grid = List[List[Cell]]
 
   sealed trait Cell
-
   case object Alive extends Cell
-
   case object Dead extends Cell
 
-  def nextGen(grid: Grid): IO[Grid] =
-    IO(grid.zipWithIndex map { case (row: List[Cell], rowIndex: Int) =>
+  def nextGen(grid: Grid): IO[Grid] = IO {
+    grid.zipWithIndex map { case (row: List[Cell], rowIndex: Int) =>
       row.zipWithIndex map { case (cell: Cell, colIndex: Int) =>
         getNextState(grid, cell, rowIndex, colIndex)
       }
-    })
+    }
+  }
 
   def getNextState(grid: Grid, cell: Cell, rowIndex: Int, colIndex: Int): Cell = {
     val cellsAlive = evalNeighbors(grid, rowIndex, colIndex) count (_ == Alive)
@@ -75,9 +73,9 @@ object Game {
       restOfCellsInRow match {
         case Nil => effects
         case cell :: tail => for {
-            fx  <- IO { effects.map{_ => print(if (cell == Alive) "X" else "_") } }
-            _   <- traverseOverRow(tail, fx)
-          } yield ()
+          fx  <- IO { effects.map { _ => print(if (cell == Alive) "X" else "_") } }
+          _   <- traverseOverRow(tail, fx)
+        } yield ()
       }
 
     printAllGenerations(startGrid, generations, IO.unit)
