@@ -5,8 +5,8 @@ import scala.util.{Failure, Success, Try}
 
 object GameOfLife {
 
-  type Grid = List[List[Cell]]
   type Row = List[Cell]
+  type Grid = List[Row]
   type Coordinate = (Int, Int)
 
   sealed trait Cell
@@ -25,7 +25,7 @@ object GameOfLife {
         } yield evalGrid
       }
 
-    def traverseRow(restOfCells: List[Cell], rowIndex: Int, colIndex: Int, acc: IO[Row]): IO[Row] =
+    def traverseRow(restOfCells: Row, rowIndex: Int, colIndex: Int, acc: IO[Row]): IO[Row] =
       restOfCells match {
         case Nil => acc
         case cell :: tail => for {
@@ -48,7 +48,7 @@ object GameOfLife {
     } yield evalCell
 
 
-  def evalNeighbors(grid: Grid, row: Int, col: Int): IO[List[Cell]] =
+  def evalNeighbors(grid: Grid, row: Int, col: Int): IO[Row] =
     getNeighborCoordinates(grid: Grid, row: Int, col: Int) map (_.map { case (r: Int, c: Int) =>
       Try(grid(r)(c)) match {
         case Failure(_) => Dead
