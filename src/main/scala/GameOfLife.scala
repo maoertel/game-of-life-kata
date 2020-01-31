@@ -6,6 +6,7 @@ import scala.util.{Failure, Success, Try}
 object GameOfLife {
 
   type Grid = List[List[Cell]]
+  type Row = List[Cell]
   type Coordinate = (Int, Int)
 
   sealed trait Cell
@@ -24,7 +25,7 @@ object GameOfLife {
         } yield evalGrid
       }
 
-    def traverseRow(restOfCells: List[Cell], rowIndex: Int, colIndex: Int, acc: IO[List[Cell]]): IO[List[Cell]] =
+    def traverseRow(restOfCells: List[Cell], rowIndex: Int, colIndex: Int, acc: IO[Row]): IO[Row] =
       restOfCells match {
         case Nil => acc
         case cell :: tail => for {
@@ -62,7 +63,6 @@ object GameOfLife {
       (row + 1, col - 1), (row + 1, col), (row + 1, col + 1)
     )
   }
-
 }
 
 object Game {
