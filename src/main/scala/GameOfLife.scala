@@ -6,41 +6,63 @@ import scala.util.{Failure, Success, Try}
 object GameOfLife {
 
   type Grid = List[List[Cell]]
+  type Row = List[Cell]
+  type Coordinate = (Int, Int)
 
   sealed trait Cell
   case object Alive extends Cell
   case object Dead extends Cell
 
-  def nextGen(grid: Grid): IO[Grid] = IO {
-    grid.zipWithIndex map { case (row: List[Cell], rowIndex: Int) =>
-      row.zipWithIndex map { case (cell: Cell, colIndex: Int) =>
-        getNextState(grid, cell, rowIndex, colIndex)
+  def nextGen(grid: Grid): IO[Grid] = {
+
+    def traverseGrid(restOfGrid: Grid, rowIndex: Int, acc: IO[Grid]): IO[Grid] =
+      restOfGrid match {
+        case Nil => acc
+        case row :: tail => for {
+          evalRow   <- traverseRow(row, rowIndex, 0, IO.pure(Nil))
+          accGrid   <- acc map (_ ++ (evalRow :: Nil))
+          evalGrid  <- traverseGrid(tail, rowIndex + 1, IO(accGrid))
+        } yield evalGrid
       }
-    }
+
+    def traverseRow(restOfCells: List[Cell], rowIndex: Int, colIndex: Int, acc: IO[Row]): IO[Row] =
+      restOfCells match {
+        case Nil => acc
+        case cell :: tail => for {
+          evalCell  <- getNextState(grid, cell, rowIndex, colIndex)
+          accRow    <- acc map (_ ++ (evalCell :: Nil))
+          evalRow   <- traverseRow(tail, rowIndex, colIndex + 1, IO(accRow))
+        } yield evalRow
+      }
+
+    traverseGrid(grid, 0, IO.pure(Nil))
   }
 
-  def getNextState(grid: Grid, cell: Cell, rowIndex: Int, colIndex: Int): Cell = {
-    val cellsAlive = evalNeighbors(grid, rowIndex, colIndex) count (_ == Alive)
-    cell match {
-      case Dead => if (cellsAlive == 3) Alive else Dead
-      case Alive => if (cellsAlive < 2 || cellsAlive > 3) Dead else Alive
-    }
-  }
+  def getNextState(grid: Grid, cell: Cell, rowIndex: Int, colIndex: Int): IO[Cell] =
+    for {
+      cellsAlive <- evalNeighbors(grid, rowIndex, colIndex) map (cells => cells.count(_ == Alive))
+      evalCell = cell match {
+        case Dead => if (cellsAlive == 3) Alive else Dead
+        case Alive => if (cellsAlive < 2 || cellsAlive > 3) Dead else Alive
+      }
+    } yield evalCell
 
-  def evalNeighbors(grid: Grid, row: Int, col: Int): List[Cell] =
-    getNeighborCoordinates(grid: Grid, row: Int, col: Int) map { case (r: Int, c: Int) =>
+
+  def evalNeighbors(grid: Grid, row: Int, col: Int): IO[List[Cell]] =
+    getNeighborCoordinates(grid: Grid, row: Int, col: Int) map (_.map { case (r: Int, c: Int) =>
       Try(grid(r)(c)) match {
         case Failure(_) => Dead
         case Success(cell) => cell
       }
-    }
+    })
 
-  def getNeighborCoordinates(grid: Grid, row: Int, col: Int) = List(
-    (row - 1, col - 1), (row - 1, col), (row - 1, col + 1),
-    (row,     col - 1),                 (row,     col + 1),
-    (row + 1, col - 1), (row + 1, col), (row + 1, col + 1)
-  )
-
+  def getNeighborCoordinates(grid: Grid, row: Int, col: Int): IO[List[Coordinate]] = IO {
+    List(
+      (row - 1, col - 1), (row - 1, col), (row - 1, col + 1),
+      (row,     col - 1),                 (row,     col + 1),
+      (row + 1, col - 1), (row + 1, col), (row + 1, col + 1)
+    )
+  }
 }
 
 object Game {
