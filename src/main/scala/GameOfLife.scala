@@ -15,7 +15,7 @@ object GameOfLife {
 
   def nextGen(grid: Grid): IO[Grid] = {
 
-    def traverseGrid(restOfGrid: Grid, rowIndex: Int, acc: IO[Grid]): IO[Grid] =
+    def traverseGrid(restOfGrid: Grid, rowIndex: Int, acc: IO[Grid]): IO[Grid] = IO.suspend {
       restOfGrid match {
         case Nil => acc
         case row :: tail => for {
@@ -24,8 +24,9 @@ object GameOfLife {
           evalGrid  <- traverseGrid(tail, rowIndex + 1, IO(accGrid))
         } yield evalGrid
       }
+    }
 
-    def traverseRow(restOfCells: Row, rowIndex: Int, colIndex: Int, acc: IO[Row]): IO[Row] =
+    def traverseRow(restOfCells: Row, rowIndex: Int, colIndex: Int, acc: IO[Row]): IO[Row] = IO.suspend {
       restOfCells match {
         case Nil => acc
         case cell :: tail => for {
@@ -34,6 +35,7 @@ object GameOfLife {
           evalRow   <- traverseRow(tail, rowIndex, colIndex + 1, IO(accRow))
         } yield evalRow
       }
+    }
 
     traverseGrid(grid, 0, IO.pure(Nil))
   }
@@ -71,17 +73,18 @@ object Game {
 
     val emptyLine = IO(println())
 
-    def printGenerations(grid: Grid, restGenerations: Int, effects: IO[Unit]): IO[Unit] =
+    def printGenerations(grid: Grid, restGenerations: Int, effects: IO[Unit]): IO[Unit] = IO.suspend {
       if (restGenerations == 0) effects
       else for {
         fx        <- printGrid(grid, effects) map (_ => emptyLine)
         nextGrid  <- GameOfLife.nextGen(grid)
         _         <- printGenerations(nextGrid, restGenerations - 1, fx)
       } yield ()
+    }
 
     def printGrid(grid: Grid, effects: IO[Unit]): IO[Unit] = traverseOverGrid(grid, effects)
 
-    def traverseOverGrid(restOfRows: Grid, effects: IO[Unit]): IO[Unit] =
+    def traverseOverGrid(restOfRows: Grid, effects: IO[Unit]): IO[Unit] = IO.suspend {
       restOfRows match {
         case Nil => effects
         case row :: tail => for {
@@ -89,8 +92,9 @@ object Game {
           _   <- traverseOverGrid(tail, fx)
         } yield ()
       }
+    }
 
-    def traverseOverRow(restOfCellsInRow: List[Cell], effects: IO[Unit]): IO[Unit] =
+    def traverseOverRow(restOfCellsInRow: List[Cell], effects: IO[Unit]): IO[Unit] = IO.suspend {
       restOfCellsInRow match {
         case Nil => effects
         case cell :: tail => for {
@@ -98,6 +102,7 @@ object Game {
           _   <- traverseOverRow(tail, fx)
         } yield ()
       }
+    }
 
     printGenerations(initialGrid, numOfGenerations, IO.unit)
   }
