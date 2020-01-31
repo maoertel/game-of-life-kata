@@ -1,18 +1,20 @@
-import GameOfLife.{Alive, Cell, Dead, Grid}
+import GameOfLife.{Alive, Dead, Grid, Row}
 import cats.effect.IO
 
 import scala.util.{Failure, Success, Try}
 
 object GameOfLife {
 
-  type Grid = List[List[Cell]]
+  type Row = List[Cell]
+  type Grid = List[Row]
+  type Coordinate = (Int, Int)
 
   sealed trait Cell
   case object Alive extends Cell
   case object Dead extends Cell
 
   def nextGen(grid: Grid): IO[Grid] = IO {
-    grid.zipWithIndex map { case (row: List[Cell], rowIndex: Int) =>
+    grid.zipWithIndex map { case (row: Row, rowIndex: Int) =>
       row.zipWithIndex map { case (cell: Cell, colIndex: Int) =>
         getNextState(grid, cell, rowIndex, colIndex)
       }
@@ -27,7 +29,7 @@ object GameOfLife {
     }
   }
 
-  def evalNeighbors(grid: Grid, row: Int, col: Int): List[Cell] =
+  def evalNeighbors(grid: Grid, row: Int, col: Int): Row =
     getNeighborCoordinates(grid: Grid, row: Int, col: Int) map { case (r: Int, c: Int) =>
       Try(grid(r)(c)) match {
         case Failure(_) => Dead
@@ -35,7 +37,7 @@ object GameOfLife {
       }
     }
 
-  def getNeighborCoordinates(grid: Grid, row: Int, col: Int) = List(
+  def getNeighborCoordinates(grid: Grid, row: Int, col: Int): List[Coordinate]= List(
     (row - 1, col - 1), (row - 1, col), (row - 1, col + 1),
     (row,     col - 1),                 (row,     col + 1),
     (row + 1, col - 1), (row + 1, col), (row + 1, col + 1)
@@ -68,7 +70,7 @@ object Game {
         } yield ()
       }
 
-    def traverseOverRow(restOfCellsInRow: List[Cell], effects: IO[Unit]): IO[Unit] =
+    def traverseOverRow(restOfCellsInRow: Row, effects: IO[Unit]): IO[Unit] =
       restOfCellsInRow match {
         case Nil => effects
         case cell :: tail => for {
