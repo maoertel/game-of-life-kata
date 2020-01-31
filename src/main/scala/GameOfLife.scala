@@ -51,17 +51,18 @@ object Game {
 
     val emptyLine = IO(println())
 
-    def printGenerations(grid: Grid, restGenerations: Int, effects: IO[Unit]): IO[Unit] =
+    def printGenerations(grid: Grid, restGenerations: Int, effects: IO[Unit]): IO[Unit] = IO.suspend {
       if (restGenerations == 0) effects
       else for {
         fx        <- printGrid(grid, effects) map (_ => emptyLine)
         nextGrid  <- GameOfLife.nextGen(grid)
         _         <- printGenerations(nextGrid, restGenerations - 1, fx)
       } yield ()
+    }
 
     def printGrid(grid: Grid, effects: IO[Unit]): IO[Unit] = traverseOverGrid(grid, effects)
 
-    def traverseOverGrid(restOfRows: Grid, effects: IO[Unit]): IO[Unit] =
+    def traverseOverGrid(restOfRows: Grid, effects: IO[Unit]): IO[Unit] = IO.suspend {
       restOfRows match {
         case Nil => effects
         case row :: tail => for {
@@ -69,8 +70,9 @@ object Game {
           _   <- traverseOverGrid(tail, fx)
         } yield ()
       }
+    }
 
-    def traverseOverRow(restOfCellsInRow: Row, effects: IO[Unit]): IO[Unit] =
+    def traverseOverRow(restOfCellsInRow: Row, effects: IO[Unit]): IO[Unit] = IO.suspend {
       restOfCellsInRow match {
         case Nil => effects
         case cell :: tail => for {
@@ -78,6 +80,7 @@ object Game {
           _   <- traverseOverRow(tail, fx)
         } yield ()
       }
+    }
 
     printGenerations(initialGrid, numOfGenerations, IO.unit)
   }
